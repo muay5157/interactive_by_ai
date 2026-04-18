@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tangram GeoLearn Phase 1 PoC</title>
+<script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
+    
+    * {
+        font-family: 'Noto Sans Thai', sans-serif;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+        overscroll-behavior: none;
+        touch-action: none;
+    }
+    
+    .glass {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+    
+    .btn-active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+        transform: scale(1.05);
+    }
+    
+    .btn-disabled {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+    
+    #konva-container {
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05), 0 10px 40px rgba(0,0,0,0.08);
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .pulse {
+        animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+</style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen overflow-hidden">
+    
+    <!-- ==================== HEADER / TOP BAR ==================== -->
+    <div class="glass border-b border-slate-200/50 px-3 md:px-6 py-3 shadow-sm">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-wrap items-center justify-between gap-2 md:gap-4">
+                <div class="flex items-center gap-2 md:gap-3">
+                    <div class="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+                        <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-lg md:text-xl font-bold text-slate-800">Tangram GeoLearn</h1>
+                        <p class="text-xs text-slate-500 hidden md:block">เรียนรู้รูปทรงเรขาคณิตผ่านเกมแทนแกรม</p>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-2 md:gap-3">
+                    <!-- Mode Selector -->
+                    <div class="glass rounded-xl p-1 flex gap-1 border-slate-200/50">
+                        <button id="mode-free" class="px-3 md:px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 btn-active">อิสระ</button>
+                        <button id="mode-mission" class="px-3 md:px-4 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all duration-200">ภารกิจ</button>
+                    </div>
+                    
+                    <!-- Level Selector - Hidden in free mode -->
+                    <select id="level-select" class="hidden glass rounded-xl px-3 py-2 text-sm font-medium border border-slate-200/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                        <option value="0">ระดับ 1: สี่เหลี่ยมจัตุรัส</option>
+                        <option value="1">ระดับ 2: สี่เหลี่ยมผืนผ้า</option>
+                        <option value="2">ระดับ 3: สามเหลี่ยมใหญ่</option>
+                    </select>
+                    
+                    <!-- Controls -->
+                    <div class="flex gap-2">
+                        <button id="btn-toggle-labels" class="glass rounded-xl px-3 py-2 text-sm font-medium border border-slate-200/50 hover:bg-slate-100 transition-all" title="แสดง/ซ่อนพื้นที่">
+                            <span class="md:hidden">123</span>
+                            <span class="hidden md:inline">แสดงพื้นที่</span>
+                        </button>
+                        <button id="btn-toggle-silhouette" class="glass rounded-xl px-3 py-2 text-sm font-medium border border-slate-200/50 hover:bg-slate-100 transition-all btn-disabled" title="แสดง/ซ่อนเงา">
+                            <span class="md:hidden">👁</span>
+                            <span class="hidden md:inline">แสดงเงา</span>
+                        </button>
+                        <button id="btn-check" class="glass rounded-xl px-3 py-2 text-sm font-medium border border-slate-200/50 hover:bg-green-100 transition-all btn-disabled" title="ตรวจสอบ">
+                            <span class="md:hidden">✓</span>
+                            <span class="hidden md:inline">ตรวจสอบ</span>
+                        </button>
+                        <button id="btn-reset" class="glass rounded-xl px-3 py-2 text-sm font-medium border border-slate-200/50 hover:bg-red-100 transition-all">
+                            <span class="md:hidden">↻</span>
+                            <span class="hidden md:inline">เริ่มใหม่</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MAIN CANVAS AREA ==================== -->
+    <div class="relative">
+        <div id="konva-container" class="w-full bg-white"></div>
+        
+        <!-- Instructions Box -->
+        <div id="instructions" class="absolute top-4 left-4 glass rounded-2xl p-4 max-w-xs border-slate-200/50 shadow-xl">
+            <h3 class="font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                </svg>
+                วิธีเล่น
+            </h3>
+            <ul class="text-sm text-slate-600 space-y-1.5">
+                <li class="flex gap-2"><span class="text-indigo-600">•</span> ลากเพื่อย้ายชิ้นส่วน</li>
+                <li class="flex gap-2"><span class="text-indigo-600">•</span> ดับเบิลคลิกเพื่อหมุน 45°</li>
+                <li class="flex gap-2"><span class="text-indigo-600">•</span> กด F เพื่อพลิกสี่เหลี่ยมด้านขนาน</li>
+                <li class="flex gap-2"><span class="text-indigo-600">•</span> ชิ้นส่วนจะดูดติดกันอัตโนมัติ</li>
+            </ul>
+            <button id="btn-close-instruction" class="mt-3 text-xs text-slate-500 hover:text-slate-700">ซ่อนคำแนะนำ</button>
+        </div>
+        
+        <!-- Success Message -->
+        <div id="success-message" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 glass rounded-3xl p-8 border-2 border-green-400 shadow-2xl z-50">
+            <div class="text-center">
+                <div class="w-20 h-20 mx-auto bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mb-4 animate-bounce">
+                    <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">เยี่ยมมาก!</h2>
+                <p class="text-slate-600 mb-4">คุณต่อสำเร็จแล้ว</p>
+                <button id="btn-next-level" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition-all">
+                    ด่านต่อไป
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== BOTTOM PANEL - REAL-TIME CALCULATION ==================== -->
+    <div class="fixed bottom-0 left-0 right-0 glass border-t border-slate-200/50 p-4 md:p-5">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+                <div class="text-center">
+                    <p class="text-xs md:text-sm text-slate-500 mb-1">พื้นที่รวม</p>
+                    <p class="text-2xl md:text-3xl font-bold text-indigo-600"><span id="total-area">16.00</span> <span class="text-sm md:text-base text-slate-400">หน่วย²</span></p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs md:text-sm text-slate-500 mb-1">เส้นรอบรูป</p>
+                    <p class="text-2xl md:text-3xl font-bold text-purple-600"><span id="total-perimeter">0.00</span> <span class="text-sm md:text-base text-slate-400">หน่วย</span></p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs md:text-sm text-slate-500 mb-1">ชิ้นส่วนที่ใช้</p>
+                    <p class="text-2xl md:text-3xl font-bold text-emerald-600"><span id="pieces-used">7</span> <span class="text-sm md:text-base text-slate-400">/ 7</span></p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs md:text-sm text-slate-500 mb-1">สถานะ</p>
+                    <p id="status-text" class="text-lg md:text-xl font-semibold text-slate-700">พร้อมเล่น</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ==================== CONFIGURATION & CONSTANTS ====================
+const CONFIG = {
+    BASE_UNIT: 80, // 1 unit = 80px for visual clarity
+    SNAP_DISTANCE: 15,
+    SNAP_ANGLES: [0, 45, 90, 135, 180, 225, 270, 315, 360],
+    OVERLAP_THRESHOLD: 0.10,
+    SILHOUETTE_TOLERANCE: 5,
+    COLORS: {
+        LARGE_TRI1: '#FF6B6B',
+        LARGE_TRI2: '#4ECDC4',
+        MEDIUM_TRI: '#FFE66D',
+        SMALL_TRI1: '#95E1D3',
+        SMALL_TRI2: '#F38181',
+        SQUARE: '#AA96DA',
+        PARALLELOGRAM: '#FCBF49'
+    }
+};
+
+// ==================== TANGRAM PIECE DEFINITIONS ====================
+// Base unit: small triangle area = 1. Coordinates in units, will be scaled by BASE_UNIT
+const TANGRAM_PIECES = [
+    {
+        id: 'large-tri-1',
+        name: 'สามเหลี่ยมใหญ่ 1',
+        area: 4,
+        color: CONFIG.COLORS.LARGE_TRI1,
+        canFlip: false,
+        points: [0, 0, 2, 0, 0, 2] // Right triangle with legs = 2 units
+    },
+    {
+        id: 'large-tri-2',
+        name: 'สามเหลี่ยมใหญ่ 2',
+        area: 4,
+        color: CONFIG.COLORS.LARGE_TRI2,
+        canFlip: false,
+        points: [0, 0, 2, 0, 0, 2]
+    },
+    {
+        id: 'medium-tri',
+        name: 'สามเหลี่ยมกลาง',
+        area: 2,
+        color: CONFIG.COLORS.MEDIUM_TRI,
+        canFlip: false,
+        points: [0, 0, Math.SQRT2, 0, 0, Math.SQRT2] // legs = √2 units
+    },
+    {
+        id: 'small-tri-1',
+        name: 'สามเหลี่ยมเล็ก 1',
+        area: 1,
+        color: CONFIG.COLORS.SMALL_TRI1,
+        canFlip: false,
+        points: [0, 0, 1, 0, 0, 1] // legs = 1 unit
+    },
+    {
+        id: 'small-tri-2',
+        name: 'สามเหลี่ยมเล็ก 2',
+        area: 1,
+        color: CONFIG.COLORS.SMALL_TRI2,
+        canFlip: false,
+        points: [0, 0, 1, 0, 0, 1]
+    },
+    {
+        id: 'square',
+        name: 'สี่เหลี่ยมจัตุรัส',
+        area: 2,
+        color: CONFIG.COLORS.SQUARE,
+        canFlip: false,
+        points: [0, 0, 1, 0, 1, 1, 0, 1] // 1x1 unit square
+    },
+    {
+        id: 'parallelogram',
+        name: 'สี่เหลี่ยมด้านขนาน',
+        area: 2,
+        color: CONFIG.COLORS.PARALLELOGRAM,
+        canFlip: true,
+        points: [0, 0, 1, 0, 2, 1, 1, 1] // Sheared unit square
+    }
+];
+
+// ==================== MISSION LEVELS ====================
+const MISSION_LEVELS = [
+    {
+        name: 'สี่เหลี่ยมจัตุรัสใหญ่',
+        description: 'ต่อชิ้นส่วนทั้งหมดเป็นสี่เหลี่ยมจัตุรัส 4x4',
+        silhouette: [0, 0, 4, 0, 4, 4, 0, 4] // 4x4 square in units
+    },
+    {
+        name: 'สี่เหลี่ยมผืนผ้า',
+        description: 'ต่อชิ้นส่วนทั้งหมดเป็นสี่เหลี่ยมผืนผ้า 2x8',
+        silhouette: [0, 0, 8, 0, 8, 2, 0, 2] // 8x2 rectangle
+    },
+    {
+        name: 'สามเหลี่ยมใหญ่',
+        description: 'ต่อชิ้นส่วนทั้งหมดเป็นสามเหลี่ยมมุมฉากใหญ่',
+        silhouette: [0, 0, 4, 0, 0, 4] // Large right triangle
+    }
+];
+
+// ==================== GLOBAL STATE ====================
+let stage, layer, silhouetteLayer;
+let pieces = [];
+let currentMode = 'free';
+let currentLevel = 0;
+let showLabels = true;
+let showSilhouette = false;
+let silhouette = null;
+let audioContext = null;
+
+// ==================== INITIALIZATION ====================
+function init() {
+    setupCanvas();
+    createPieces();
+    setupEventListeners();
+    positionPiecesInitial();
+    updateCalculations();
+}
+
+function setupCanvas() {
+    const container = document.getElementById('konva-container');
+    const width = window.innerWidth;
+    const height = window.innerHeight - 200; // Account for header and footer
+    
+    stage = new Konva.Stage({
+        container: 'konva-container',
+        width: width,
+        height: height
+    });
+    
+    silhouetteLayer = new Konva.Layer();
+    layer = new Konva.Layer();
+    
+    stage.add(silhouetteLayer);
+    stage.add(layer);
+    
+    // Responsive resize
+    window.addEventListener('resize', () => {
+        const newWidth = window.innerWidth;
+        const newHeight = window.innerHeight - 200;
+        stage.width(newWidth);
+        stage.height(newHeight);
+        stage.batchDraw();
+    });
+    
+    // Prevent context menu on right click
+    container.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+// ==================== CREATE TANGRAM PIECES ====================
+function createPieces() {
+    TANGRAM_PIECES.forEach((pieceData, idx) => {
+        // Scale points by BASE_UNIT
+        const scaledPoints = pieceData.points.map(p => p * CONFIG.BASE_UNIT);
+        
+        const group = new Konva.Group({
+            x: 0,
+            y: 0,
+            draggable: true,
+            id: pieceData.id,
+            rotation: 0,
+            scaleX: 1
+        });
+        
+        const shape = new Konva.Line({
+            points: scaledPoints,
+            fill: pieceData.color,
+            stroke: '#1e293b',
+            strokeWidth: 2,
+            closed: true,
+            shadowColor: 'rgba(0,0,0,0.3)',
+            shadowBlur: 10,
+            shadowOffset: { x: 3, y: 3 },
+            shadowOpacity: 0.4,
+            cornerRadius: 3
+        });
+        
+        // Area label
+        const label = new Konva.Text({
+            text: pieceData.area.toString(),
+            fontSize: 18,
+            fontFamily: 'Noto Sans Thai',
+            fill: '#1e293b',
+            fontStyle: 'bold',
+            opacity: 0.7,
+            listening: false
+        });
+        
+        group.add(shape);
+        group.add(label);
+        
+        // Store metadata
+        group.setAttr('pieceData', pieceData);
+        group.setAttr('shape', shape);
+        group.setAttr('label', label);
+        group.setAttr('isFlipped', false);
+        group.setAttr('basePoints', scaledPoints);
+        
+        updateLabelPosition(group);
+        setupPieceEvents(group);
+        
+        pieces.push(group);
+        layer.add(group);
+    });
+}
+
+function updateLabelPosition(group) {
+    const label = group.getAttr('label');
+    const shape = group.getAttr('shape');
+    const box = shape.getClientRect({ skipTransform: false });
+    label.x(box.width / 2 - label.width() / 2);
+    label.y(box.height / 2 - label.height() / 2);
+    label.visible(showLabels);
+}
+
+// ==================== PIECE INTERACTIONS ====================
+function setupPieceEvents(group) {
+    const shape = group.getAttr('shape');
+    
+    group.on('dragstart', () => {
+        group.moveToTop();
+        shape.shadowBlur(20);
+        shape.shadowOpacity(0.6);
+        layer.batchDraw();
+    });
+    
+    group.on('dragmove', () => {
+        checkOverlap(group);
+    });
+    
+    group.on('dragend', () => {
+        shape.shadowBlur(10);
+        shape.shadowOpacity(0.4);
+        trySnap(group);
+        updateCalculations();
+        layer.batchDraw();
+    });
+    
+    // Double click to rotate
+    group.on('dblclick dbltap', () => {
+        rotatePiece(group);
+    });
+    
+    // Right click to rotate
+    group.on('contextmenu', (e) => {
+        e.evt.preventDefault();
+        rotatePiece(group);
+    });
+    
+    // Hover effects
+    group.on('mouseenter', () => {
+        if (!group.isDragging()) {
+            shape.stroke('#6366f1');
+            shape.strokeWidth(3);
+            stage.container().style.cursor = 'pointer';
+            layer.batchDraw();
+        }
+    });
+    
+    group.on('mouseleave', () => {
+        shape.stroke('#1e293b');
+        shape.strokeWidth(2);
+        stage.container().style.cursor = 'default';
+        layer.batchDraw();
+    });
+}
+
+function rotatePiece(group) {
+    const currentRotation = group.rotation();
+    const newRotation = (currentRotation + 45) % 360;
+    group.rotation(newRotation);
+    playClickSound();
+    updateCalculations();
+    layer.batchDraw();
+}
+
+function flipPiece(group) {
+    const pieceData = group.getAttr('pieceData');
+    if (!pieceData.canFlip) return;
+    
+    const isFlipped = group.getAttr('isFlipped');
+    group.scaleX(isFlipped ? 1 : -1);
+    group.setAttr('isFlipped', !isFlipped);
+    playClickSound();
+    updateCalculations();
+    layer.batchDraw();
+}
+
+// ==================== SNAP SYSTEM ====================
+function trySnap(movedPiece) {
+    const movedRect = movedPiece.getClientRect();
+    
+    pieces.forEach(otherPiece => {
+        if (otherPiece === movedPiece) return;
+        
+        const otherRect = otherPiece.getClientRect();
+        const distance = Math.hypot(
+            movedRect.x - otherRect.x,
+            movedRect.y - otherRect.y
+        );
+        
+        if (distance < CONFIG.SNAP_DISTANCE * 3) {
+            // Check if edges align
+            const edges = findClosestEdges(movedPiece, otherPiece);
+            if (edges && edges.distance < CONFIG.SNAP_DISTANCE) {
+                // Check rotation alignment
+                const rot1 = movedPiece.rotation() % 360;
+                const rot2 = otherPiece.rotation() % 360;
+                const angleDiff = Math.abs((rot1 - rot2 + 180) % 360 - 180);
+                
+                if (CONFIG.SNAP_ANGLES.some(a => Math.abs(angleDiff - (a % 180)) < 5)) {
+                    snapPieces(movedPiece, otherPiece, edges);
+                    playClickSound();
+                    return;
+                }
+            }
+        }
+    });
+}
+
+function findClosestEdges(piece1, piece2) {
+    const rect1 = piece1.getClientRect();
+    const rect2 = piece2.getClientRect();
+    
+    const edges1 = [
+        { x: rect1.x, y: rect1.y + rect1.height / 2, side: 'left' },
+        { x: rect1.x + rect1.width, y: rect1.y + rect1.height / 2, side: 'right' },
+        { x: rect1.x + rect1.width / 2, y: rect1.y, side: 'top' },
+        { x: rect1.x + rect1.width / 2, y: rect1.y + rect1.height, side: 'bottom' }
+    ];
+    
+    const edges2 = [
+        { x: rect2.x, y: rect2.y + rect2.height / 2, side: 'left' },
+        { x: rect2.x + rect2.width, y: rect2.y + rect2.height / 2, side: 'right' },
+        { x: rect2.x + rect2.width / 2, y: rect2.y, side: 'top' },
+        { x: rect2.x + rect2.width / 2, y: rect2.y + rect2.height, side: 'bottom' }
+    ];
+    
+    let minDist = Infinity;
+    let closest = null;
+    
+    edges1.forEach(e1 => {
+        edges2.forEach(e2 => {
+            const dist = Math.hypot(e1.x - e2.x, e1.y - e2.y);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = { e1, e2, distance: dist };
+            }
+        });
+    });
+    
+    return closest;
+}
+
+function snapPieces(movedPiece, targetPiece, edges) {
+    const dx = edges.e2.x - edges.e1.x;
+    const dy = edges.e2.y - edges.e1.y;
+    movedPiece.x(movedPiece.x() + dx);
+    movedPiece.y(movedPiece.y() + dy);
+}
+
+// ==================== OVERLAP DETECTION ====================
+function checkOverlap(movedPiece) {
+    const movedRect = movedPiece.getClientRect();
+    let hasOverlap = false;
+    
+    pieces.forEach(otherPiece => {
+        if (otherPiece === movedPiece) return;
+        
+        const otherRect = otherPiece.getClientRect();
+        const overlapArea = calculateOverlapArea(movedRect, otherRect);
+        const movedArea = movedRect.width * movedRect.height;
+        const overlapPercent = overlapArea / movedArea;
+        
+        if (overlapPercent > CONFIG.OVERLAP_THRESHOLD) {
+            hasOverlap = true;
+            movedPiece.getAttr('shape').stroke('#ef4444');
+            movedPiece.getAttr('shape').strokeWidth(4);
+            document.getElementById('status-text').textContent = 'ชิ้นส่วนซ้อนทับ!';
+            document.getElementById('status-text').className = 'text-lg md:text-xl font-semibold text-red-600 pulse';
+        }
+    });
+    
+    if (!hasOverlap) {
+        movedPiece.getAttr('shape').stroke('#1e293b');
+        movedPiece.getAttr('shape').strokeWidth(2);
+        document.getElementById('status-text').textContent = 'ลากต่อได้เลย';
+        document.getElementById('status-text').className = 'text-lg md:text-xl font-semibold text-slate-700';
+    }
+    
+    layer.batchDraw();
+}
+
+function calculateOverlapArea(rect1, rect2) {
+    const x1 = Math.max(rect1.x, rect2.x);
+    const y1 = Math.max(rect1.y, rect2.y);
+    const x2 = Math.min(rect1.x + rect1.width, rect2.x + rect2.width);
+    const y2 = Math.min(rect1.y + rect1.height, rect2.y + rect2.height);
+    
+    if (x2 < x1 || y2 < y1) return 0;
+    return (x2 - x1) * (y2 - y1);
+}
+
+// ==================== AREA & PERIMETER CALCULATION ====================
+function updateCalculations() {
+    const clusters = findClusters();
+    let totalArea = 0;
+    let totalPerimeter = 0;
+    
+    clusters.forEach(cluster => {
+        const points = getClusterOuterPoints(cluster);
+        if (points.length >= 6) {
+            totalArea += calculatePolygonArea(points) / (CONFIG.BASE_UNIT * CONFIG.BASE_UNIT);
+            totalPerimeter += calculatePolygonPerimeter(points) / CONFIG.BASE_UNIT;
+        }
+    });
+    
+    document.getElementById('total-area').textContent = totalArea.toFixed(2);
+    document.getElementById('total-perimeter').textContent = totalPerimeter.toFixed(2);
+    document.getElementById('pieces-used').textContent = pieces.length;
+}
+
+function findClusters() {
+    // Simple clustering: group pieces that are close together
+    const clusters = [];
+    const visited = new Set();
+    
+    pieces.forEach(piece => {
+        if (visited.has(piece.id())) return;
+        
+        const cluster = [];
+        const queue = [piece];
+        
+        while (queue.length > 0) {
+            const current = queue.shift();
+            if (visited.has(current.id())) continue;
+            
+            visited.add(current.id());
+            cluster.push(current);
+            
+            // Find adjacent pieces
+            pieces.forEach(other => {
+                if (!visited.has(other.id()) && arePiecesAdjacent(current, other)) {
+                    queue.push(other);
+                }
+            });
+        }
+        
+        clusters.push(cluster);
+    });
+    
+    return clusters;
+}
+
+function arePiecesAdjacent(p1, p2) {
+    const r1 = p1.getClientRect();
+    const r2 = p2.getClientRect();
+    const overlap = calculateOverlapArea(r1, r2);
+    return overlap > 0 || Math.hypot(r1.x - r2.x, r1.y - r2.y) < CONFIG.SNAP_DISTANCE * 2;
+}
+
+function getClusterOuterPoints(cluster) {
+    // Simplified: just return all vertices of all pieces in cluster
+    const allPoints = [];
+    cluster.forEach(piece => {
+        const shape = piece.getAttr('shape');
+        const transform = piece.getAbsoluteTransform();
+        const points = shape.points();
+        
+        for (let i = 0; i < points.length; i += 2) {
+            const pt = transform.point({ x: points[i], y: points[i + 1] });
+            allPoints.push(pt.x, pt.y);
+        }
+    });
+    return allPoints;
+}
+
+function calculatePolygonArea(points) {
+    // Shoelace formula
+    let area = 0;
+    const n = points.length / 2;
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const xi = points[i * 2], yi = points[i * 2 + 1];
+        const xj = points[j * 2], yj = points[j * 2 + 1];
+        area += xi * yj - xj * yi;
+    }
+    return Math.abs(area) / 2;
+}
+
+function calculatePolygonPerimeter(points) {
+    let perimeter = 0;
+    const n = points.length / 2;
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const xi = points[i * 2], yi = points[i * 2 + 1];
+        const xj = points[j * 2], yj = points[j * 2 + 1];
+        perimeter += Math.hypot(xj - xi, yj - yi);
+    }
+    return perimeter;
+}
+
+// ==================== MISSION MODE ====================
+function loadMissionLevel(levelIdx) {
+    currentLevel = levelIdx;
+    const level = MISSION_LEVELS[levelIdx];
+    
+    // Clear previous silhouette
+    silhouetteLayer.destroyChildren();
+    
+    // Create new silhouette
+    const scaledPoints = level.silhouette.map(p => p * CONFIG.BASE_UNIT);
+    silhouette = new Konva.Line({
+        points: scaledPoints,
+        fill: 'rgba(99, 102, 241, 0.15)',
+        stroke: '#6366f1',
+        strokeWidth: 3,
+        dash: [10, 5],
+        closed: true,
+        listening: false
+    });
+    
+    // Center silhouette
+    const stageWidth = stage.width();
+    const stageHeight = stage.height();
+    const bounds = silhouette.getClientRect();
+    silhouette.x(stageWidth / 2 - bounds.width / 2);
+    silhouette.y(stageHeight / 2 - bounds.height / 2);
+    
+    silhouetteLayer.add(silhouette);
+    silhouetteLayer.visible(showSilhouette);
+    silhouetteLayer.batchDraw();
+    
+    document.getElementById('status-text').textContent = level.name;
+}
+
+function checkMissionComplete() {
+    if (currentMode !== 'mission' || !silhouette) return false;
+    
+    const silBounds = silhouette.getAbsoluteTransform().point({ x: 0, y: 0 });
+    const silPoints = silhouette.points();
+    
+    // Check if all pieces are roughly inside silhouette bounds
+    const silRect = silhouette.getClientRect({ relativeTo: stage });
+    let allInside = true;
+    
+    pieces.forEach(piece => {
+        const rect = piece.getClientRect({ relativeTo: stage });
+        if (rect.x < silRect.x - CONFIG.SILHOUETTE_TOLERANCE ||
+            rect.y < silRect.y - CONFIG.SILHOUETTE_TOLERANCE ||
+            rect.x + rect.width > silRect.x + silRect.width + CONFIG.SILHOUETTE_TOLERANCE ||
+            rect.y + rect.height > silRect.y + silRect.height + CONFIG.SILHOUETTE_TOLERANCE) {
+            allInside = false;
+        }
+    });
+    
+    if (allInside) {
+        showSuccessMessage();
+        return true;
+    } else {
+        document.getElementById('status-text').textContent = 'ยังไม่ครบทุกรูป!';
+        document.getElementById('status-text').className = 'text-lg md:text-xl font-semibold text-orange-600';
+        setTimeout(() => {
+            document.getElementById('status-text').textContent = MISSION_LEVELS[currentLevel].name;
+            document.getElementById('status-text').className = 'text-lg md:text-xl font-semibold text-slate-700';
+        }, 2000);
+        return false;
+    }
+}
+
+function showSuccessMessage() {
+    const msg = document.getElementById('success-message');
+    msg.classList.remove('hidden');
+    document.getElementById('status-text').textContent = 'สำเร็จ!';
+    document.getElementById('status-text').className = 'text-lg md:text-xl font-semibold text-green-600';
+    playSuccessSound();
+    
+    document.getElementById('btn-next-level').onclick = () => {
+        msg.classList.add('hidden');
+        if (currentLevel < MISSION_LEVELS.length - 1) {
+            document.getElementById('level-select').value = (currentLevel + 1).toString();
+            loadMissionLevel(currentLevel + 1);
+            resetPieces();
+        }
+    };
+}
+
+// ==================== SOUND EFFECTS ====================
+function initAudio() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playClickSound() {
+    initAudio();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+function playSuccessSound() {
+    initAudio();
+    const notes = [523.25, 659.25, 783.99]; // C, E, G
+    notes.forEach((freq, i) => {
+        setTimeout(() => {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.3);
+        }, i * 100);
+    });
+}
+
+// ==================== UI CONTROLS ====================
+function setupEventListeners() {
+    // Mode switch
+    document.getElementById('mode-free').onclick = () => switchMode('free');
+    document.getElementById('mode-mission').onclick = () => switchMode('mission');
+    
+    // Level select
+    document.getElementById('level-select').onchange = (e) => {
+        loadMissionLevel(parseInt(e.target.value));
+        resetPieces();
+    };
+    
+    // Toggle labels
+    document.getElementById('btn-toggle-labels').onclick = () => {
+        showLabels = !showLabels;
+        pieces.forEach(p => p.getAttr('label').visible(showLabels));
+        layer.batchDraw();
+        event.target.querySelector('span:last-child').textContent = showLabels ? 'ซ่อนพื้นที่' : 'แสดงพื้นที่';
+    };
+    
+    // Toggle silhouette
+    document.getElementById('btn-toggle-silhouette').onclick = () => {
+        if (currentMode !== 'mission') return;
+        showSilhouette = !showSilhouette;
+        silhouetteLayer.visible(showSilhouette);
+        silhouetteLayer.batchDraw();
+        event.target.querySelector('span:last-child').textContent = showSilhouette ? 'ซ่อนเงา' : 'แสดงเงา';
+    };
+    
+    // Check button
+    document.getElementById('btn-check').onclick = checkMissionComplete;
+    
+    // Reset button
+    document.getElementById('btn-reset').onclick = resetPieces;
+    
+    // Close instruction
+    document.getElementById('btn-close-instruction').onclick = () => {
+        document.getElementById('instructions').style.display = 'none';
+    };
+    
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'f') {
+            const selectedPiece = pieces.find(p => p.getAttr('shape').stroke() === '#6366f1');
+            if (selectedPiece) flipPiece(selectedPiece);
+        }
+    });
+    
+    // Touch support
+    stage.on('touchstart', initAudio);
+    stage.on('click tap', initAudio);
+}
+
+function switchMode(mode) {
+    currentMode = mode;
+    
+    if (mode === 'free') {
+        document.getElementById('mode-free').classList.add('btn-active');
+        document.getElementById('mode-mission').classList.remove('btn-active');
+        document.getElementById('level-select').classList.add('hidden');
+        document.getElementById('btn-toggle-silhouette').classList.add('btn-disabled');
+        document.getElementById('btn-check').classList.add('btn-disabled');
+        silhouetteLayer.visible(false);
+    } else {
+        document.getElementById('mode-mission').classList.add('btn-active');
+        document.getElementById('mode-free').classList.remove('btn-active');
+        document.getElementById('level-select').classList.remove('hidden');
+        document.getElementById('btn-toggle-silhouette').classList.remove('btn-disabled');
+        document.getElementById('btn-check').classList.remove('btn-disabled');
+        loadMissionLevel(currentLevel);
+    }
+    
+    resetPieces();
+}
+
+function resetPieces() {
+    positionPiecesInitial();
+    updateCalculations();
+    document.getElementById('status-text').textContent = currentMode === 'mission' ? MISSION_LEVELS[currentLevel].name : 'พร้อมเล่น';
+    document.getElementById('status-text').className = 'text-lg md:text-xl font-semibold text-slate-700';
+}
+
+function positionPiecesInitial() {
+    const stageWidth = stage.width();
+    const stageHeight = stage.height();
+    const margin = 20;
+    const cols = 4;
+    const spacing = 120;
+    
+    pieces.forEach((piece, idx) => {
+        const row = Math.floor(idx / cols);
+        const col = idx % cols;
+        piece.x(margin + col * spacing);
+        piece.y(margin + row * spacing + 80);
+        piece.rotation(0);
+        piece.scaleX(1);
+        piece.setAttr('isFlipped', false);
+        updateLabelPosition(piece);
+    });
+    
+    layer.batchDraw();
+}
+
+// ==================== START APPLICATION ====================
+window.addEventListener('load', () => {
+    init();
+});
+</script>
+
+</body>
+</html>

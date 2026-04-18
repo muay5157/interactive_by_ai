@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<!-- Playables SDK -->
+<script>// Playables SDK v1.0.0
+// Game lifecycle bridge: rAF-based game-ready detection + event communication
+(function() {
+  'use strict';
+
+  // Idempotency: skip if already initialized (e.g., server-side injection
+  // followed by client-side inject-javascript via the Bloks webview component).
+  if (window.playablesSDK) return;
+
+  var HANDLER_NAME = 'playablesGameEventHandler';
+  var ANDROID_BRIDGE_NAME = '_MetaPlayablesBridge';
+  var RAF_FRAME_THRESHOLD = 3;
+
+  var gameReadySent = false;
+  var firstInteractionSent = false;
+  var errorSent = false;
+  var frameCount = 0;
+  var originalRAF = window.requestAnimationFrame;
+
+  // --- Transport Layer ---
+
+  function hasIOSBridge() {
+    return !!(window.webkit &&
+              window.webkit.messageHandlers &&
+              window.webkit.messageHandlers[HANDLER_NAME]);
+  }
+
+  function hasAndroidBridge() {
+    return !!(window[ANDROID_BRIDGE_NAME] &&
+              typeof window[ANDROID_BRIDGE_NAME].postEvent === 'function');
+  }
+
+  function isInIframe() {
+    return !!(window.parent && window.parent !== window);
+  }
+
+  function sendEvent(eventName, payload) {
+    var message = {
+      type: eventName,
+      payload: payload || {},
+      timestamp: Date.now()
+    };
+
+    if (hasIOSBridge()) {
+      try {
+        window.webkit.messageHandlers[HANDLER_NAME].postMessage(message);
+      } catch (e) { /* ignore */ }
+      return;
+    }
+
+    if (hasAndroidBridge()) {
+    try {
+      var p = payload || {};
+      p.__secureToken = window.__fbAndroidBridgeAuthToken || '';
+      window[ANDROID_BRIDGE_NAME].postEvent(
+        eventName,
+        JSON.stringify(p)
+      );
+    } catch (e) { /* ignore */ }
+    return;
+  }
+
+    if (isInIframe()) {
+      try {
+        window.parent.postMessage(message, '*');
+      } catch (e) { /* ignore */ }
+      return;
+    }
+  }
+
+  // --- rAF Game-Ready Detection ---
+
+  function onFrame() {
+    if (gameReadySent) return;
+
+    frameCount++;
+    if (frameCount >= RAF_FRAME_THRESHOLD) {
+      gameReadySent = true;
+      sendEvent('game_ready', {
+        frame_count: frameCount,
+        detected_at: Date.now()
+      });
+      return;
+    }
+
+    originalRAF.call(window, onFrame);
+  }
+
+  if (originalRAF) {
+    window.requestAnimationFrame = function(callback) {
+      if (!gameReadySent) {
+        return originalRAF.call(window, function(timestamp) {
+          frameCount++;
+          if (frameCount >= RAF_FRAME_THRESHOLD && !gameReadySent) {
+            gameReadySent = true;
+            sendEvent('game_ready', {
+              frame_count: frameCount,
+              detected_at: Date.now()
+            });
+          }
+          callback(timestamp);
+        });
+      }
+      return originalRAF.call(window, callback);
+    };
+  }
+
+  // --- First User Interaction Detection ---
+
+  function setupFirstInteractionDetection() {
+    var events = ['touchstart', 'mousedown', 'keydown'];
+
+    function onFirstInteraction() {
+      if (firstInteractionSent) return;
+      firstInteractionSent = true;
+      sendEvent('user_interaction_start', null);
+
+      for (var i = 0; i < events.length; i++) {
+        document.removeEventListener(events[i], onFirstInteraction, true);
+      }
+    }
+
+    for (var i = 0; i < events.length; i++) {
+      document.addEventListener(events[i], onFirstInteraction, true);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupFirstInteractionDetection);
+  } else {
+    setupFirstInteractionDetection();
+  }
+
+  // --- Auto Error Capture ---
+
+  window.addEventListener('error', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    sendEvent('error', {
+      message: event.message || 'Unknown error',
+      source: event.filename || '',
+      lineno: event.lineno || 0,
+      colno: event.colno || 0,
+      auto_captured: true
+    });
+  });
+
+  window.addEventListener('unhandledrejection', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    var reason = event.reason;
+    sendEvent('error', {
+      message: (reason instanceof Error) ? reason.message : String(reason),
+      type: 'unhandled_promise_rejection',
+      auto_captured: true
+    });
+  });
+
+  // --- Public API ---
+
+  window.playablesSDK = {
+    complete: function(score) {
+      sendEvent('game_ended', {
+        score: score,
+        completed: true
+      });
+    },
+
+    error: function(message) {
+      if (errorSent) return;
+      errorSent = true;
+      sendEvent('error', {
+        message: message || 'Unknown error',
+        auto_captured: false
+      });
+    },
+
+    sendEvent: function(eventName, payload) {
+      if (!eventName || typeof eventName !== 'string') return;
+      sendEvent(eventName, payload);
+    }
+  };
+
+  // Kick off rAF detection in case no game code calls rAF immediately
+  if (originalRAF) {
+    originalRAF.call(window, onFrame);
+  }
+})();</script>
+<script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เกมเรียนรู้ใยแก้วนำแสง 🔬</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+* {
+    font-family: 'Kanit', sans-serif;
+}
+.fiber-core {
+    background: linear-gradient(90deg, #ccc 0%, #fff 5%, #fff 95%, #ccc 100%);
+    box-shadow: inset 0 3px 6px rgba(0,0,0,0.2), inset 0 -3px 6px rgba(0,0,0,0.2);
+}
+.light-pulse {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle, #fff 0%, #00ff88 30%, #00ff88 60%, transparent 100%);
+    border-radius: 50%;
+    box-shadow: 0 0 20px #00ff88, 0 0 40px #00ff88;
+    opacity: 0;
+}
+.light-pulse.active {
+    animation: travel var(--duration) linear forwards;
+}
+@keyframes travel {
+    0% {
+        left: 0%;
+        opacity: 0;
+        transform: translateY(0px);
+    }
+    5% {
+        opacity: 1;
+    }
+    95% {
+        opacity: 1;
+    }
+    100% {
+        left: calc(100% - 20px);
+        opacity: 0;
+        transform: translateY(0px);
+    }
+}
+.step-item {
+    transition: all 0.3s ease;
+}
+.step-item.active {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+}
+.gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.binary-digit {
+    display: inline-block;
+    min-width: 24px;
+    padding: 4px 6px;
+    margin: 2px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+.binary-digit.active {
+    background: #10b981;
+    color: white;
+    transform: scale(1.2);
+    box-shadow: 0 0 15px #10b981;
+}
+</style>
+</head>
+<body class="gradient-bg min-h-screen p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
+            <h1 class="text-3xl md:text-5xl font-bold text-center bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                🔬 ใยแก้วนำแสงทำงานอย่างไร? 🌈
+            </h1>
+            <p class="text-center text-gray-600 text-lg md:text-xl">
+                เรียนรู้การสื่อสารด้วยแสงแบบสนุกๆ สำหรับนักเรียน ม.ปลาย ✨
+            </p>
+        </div>
+
+        <!-- Main Control Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- Sender -->
+            <div class="bg-white rounded-3xl shadow-2xl p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="text-4xl">📤</div>
+                    <h2 class="text-2xl font-bold text-purple-700">ฝั่งผู้ส่ง</h2>
+                </div>
+                <label class="block text-gray-700 font-semibold mb-2 text-lg">พิมพ์ข้อความที่ต้องการส่ง:</label>
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    value="สวัสดี"
+                    maxlength="10"
+                    class="w-full p-4 text-xl border-4 border-purple-300 rounded-2xl focus:border-purple-500 focus:outline-none transition"
+                    placeholder="พิมพ์ข้อความ..."
+                >
+                <div class="text-sm text-gray-500 mt-1">* สูงสุด 10 ตัวอักษร</div>
+                
+                <button 
+                    id="sendBtn"
+                    class="w-full mt-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-xl font-bold py-4 px-6 rounded-2xl shadow-lg transform hover:scale-105 transition duration-200 flex items-center justify-center gap-2">
+                    <span>ส่งข้อความ</span>
+                    <span class="text-2xl">🚀</span>
+                </button>
+
+                <button 
+                    id="resetBtn"
+                    class="w-full mt-3 bg-gray-400 hover:bg-gray-500 text-white text-lg font-bold py-3 px-6 rounded-2xl shadow-lg transform hover:scale-105 transition duration-200">
+                    รีเซ็ต 🔄
+                </button>
+            </div>
+
+            <!-- Speed Control -->
+            <div class="bg-white rounded-3xl shadow-2xl p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="text-4xl">⚡</div>
+                    <h2 class="text-2xl font-bold text-blue-700">ควบคุมความเร็ว</h2>
+                </div>
+                <label class="block text-gray-700 font-semibold mb-2 text-lg">ความเร็วแสง:</label>
+                <input 
+                    type="range" 
+                    id="speedSlider" 
+                    min="500" 
+                    max="3000" 
+                    value="1500"
+                    class="w-full h-3 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                >
+                <div class="flex justify-between text-sm text-gray-600 mt-2">
+                    <span>เร็วมาก 🚀</span>
+                    <span id="speedValue" class="font-bold text-blue-600">ปกติ</span>
+                    <span>ช้า 🐢</span>
+                </div>
+                
+                <div class="mt-6 bg-blue-50 rounded-2xl p-4">
+                    <h3 class="font-bold text-blue-800 mb-2 text-lg">💡 เกร็ดความรู้</h3>
+                    <p class="text-gray-700 text-sm md:text-base">แสงเดินทางในใยแก้วนำแสงด้วยความเร็วประมาณ 200,000 กม./วินาที เร็วกว่ารถแข่ง 1 ล้านเท่า! 🏎️💨</p>
+                </div>
+            </div>
+
+            <!-- Receiver -->
+            <div class="bg-white rounded-3xl shadow-2xl p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="text-4xl">📥</div>
+                    <h2 class="text-2xl font-bold text-green-700">ฝั่งผู้รับ</h2>
+                </div>
+                <label class="block text-gray-700 font-semibold mb-2 text-lg">ข้อความที่ได้รับ:</label>
+                <div 
+                    id="receiverBox"
+                    class="w-full h-32 p-4 text-2xl border-4 border-green-300 rounded-2xl bg-green-50 flex items-center justify-center text-gray-400 font-bold">
+                    รอรับข้อความ...
+                </div>
+                <div class="mt-3 text-center">
+                    <span id="statusText" class="text-lg font-semibold text-gray-500">🔴 ยังไม่ได้เชื่อมต่อ</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fiber Visualization -->
+        <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-center mb-6 text-gray-800">
+                💫 สายใยแก้วนำแสง 💫
+            </h2>
+            
+            <!-- Fiber Tube -->
+            <div class="relative">
+                <div class="fiber-core relative h-16 md:h-20 rounded-full overflow-hidden border-4 border-gray-400">
+                    <div id="pulseContainer" class="absolute inset-0"></div>
+                </div>
+                <!-- Binary Display -->
+                <div class="mt-4 bg-gray-900 rounded-2xl p-4 min-h-20">
+                    <div class="text-gray-400 text-sm mb-2 font-semibold">📡 ข้อมูลไบนารี่ที่กำลังส่ง:</div>
+                    <div id="binaryDisplay" class="text-green-400 text-lg md:text-xl font-mono break-all">
+                        รอการส่งข้อมูล...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step Log -->
+        <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-center mb-6 text-gray-800">
+                📋 ขั้นตอนการทำงานแบบ Step-by-Step
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div id="step1" class="step-item bg-gradient-to-br from-pink-100 to-pink-200 rounded-2xl p-4 border-4 border-pink-300">
+                    <div class="text-4xl text-center mb-2">1️⃣</div>
+                    <h3 class="font-bold text-center text-pink-800 text-lg">ข้อความ</h3>
+                    <p id="step1Text" class="text-center text-gray-700 mt-2 break-words">-</p>
+                </div>
+                <div id="step2" class="step-item bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl p-4 border-4 border-purple-300">
+                    <div class="text-4xl text-center mb-2">2️⃣</div>
+                    <h3 class="font-bold text-center text-purple-800 text-lg">แปลง Binary</h3>
+                    <p id="step2Text" class="text-center text-gray-700 mt-2 text-xs font-mono break-all">-</p>
+                </div>
+                <div id="step3" class="step-item bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl p-4 border-4 border-blue-300">
+                    <div class="text-4xl text-center mb-2">3️⃣</div>
+                    <h3 class="font-bold text-center text-blue-800 text-lg">ส่งแสง 💡</h3>
+                    <p id="step3Text" class="text-center text-gray-700 mt-2">รอการส่ง</p>
+                </div>
+                <div id="step4" class="step-item bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-2xl p-4 border-4 border-yellow-300">
+                    <div class="text-4xl text-center mb-2">4️⃣</div>
+                    <h3 class="font-bold text-center text-yellow-800 text-lg">ถอดรหัส</h3>
+                    <p id="step4Text" class="text-center text-gray-700 mt-2">รอข้อมูล</p>
+                </div>
+                <div id="step5" class="step-item bg-gradient-to-br from-green-100 to-green-200 rounded-2xl p-4 border-4 border-green-300">
+                    <div class="text-4xl text-center mb-2">5️⃣</div>
+                    <h3 class="font-bold text-center text-green-800 text-lg">ข้อความ</h3>
+                    <p id="step5Text" class="text-center text-gray-700 mt-2 break-words">-</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Section -->
+        <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8">
+            <h2 class="text-2xl md:text-3xl font-bold text-center mb-6 text-gray-800">
+                🎯 แบบทดสอบความเข้าใจ 3 ข้อ
+            </h2>
+            <div id="quizContainer" class="space-y-6"></div>
+            <div id="quizResult" class="mt-6 text-center text-2xl font-bold"></div>
+        </div>
+    </div>
+
+<script>
+const state = {
+    isTransmitting: false,
+    currentBinary: '',
+    speed: 1500,
+    quizAnswers: {},
+    questions: [
+        {
+            id: 1,
+            question: "ใยแก้วนำแสงส่งข้อมูลด้วยอะไร? 🤔",
+            options: [
+                { text: "ไฟฟ้า ⚡", correct: false },
+                { text: "แสง 💡", correct: true },
+                { text: "เสียง 🔊", correct: false }
+            ]
+        },
+        {
+            id: 2,
+            question: "เลขฐานสอง (Binary) มีเลขอะไรบ้าง? 🔢",
+            options: [
+                { text: "0 และ 1", correct: true },
+                { text: "1 ถึง 10", correct: false },
+                { text: "A ถึง Z", correct: false }
+            ]
+        },
+        {
+            id: 3,
+            question: "ข้อดีของใยแก้วนำแสงคืออะไร? ✨",
+            options: [
+                { text: "ส่งข้อมูลได้ช้า 🐢", correct: false },
+                { text: "ส่งข้อมูลได้เร็วมากและไกล 🚀", correct: true },
+                { text: "ราคาถูกมาก 💰", correct: false }
+            ]
+        }
+    ]
+};
+
+// Elements
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const resetBtn = document.getElementById('resetBtn');
+const receiverBox = document.getElementById('receiverBox');
+const speedSlider = document.getElementById('speedSlider');
+const speedValue = document.getElementById('speedValue');
+const statusText = document.getElementById('statusText');
+const pulseContainer = document.getElementById('pulseContainer');
+const binaryDisplay = document.getElementById('binaryDisplay');
+
+// Step elements
+const step1Text = document.getElementById('step1Text');
+const step2Text = document.getElementById('step2Text');
+const step3Text = document.getElementById('step3Text');
+const step4Text = document.getElementById('step4Text');
+const step5Text = document.getElementById('step5Text');
+
+// Utility: Text to Binary
+function textToBinary(text) {
+    return text.split('').map(char => {
+        return char.charCodeAt(0).toString(2).padStart(8, '0');
+    }).join(' ');
+}
+
+// Utility: Binary to Text
+function binaryToText(binary) {
+    try {
+        return binary.split(' ')
+            .filter(b => b.length > 0)
+            .map(bin => String.fromCharCode(parseInt(bin, 2)))
+            .join('');
+    } catch (e) {
+        return 'Error';
+    }
+}
+
+// Update step UI
+function updateStep(stepNum, text, active = false) {
+    const stepEl = document.getElementById(`step${stepNum}`);
+    const textEl = document.getElementById(`step${stepNum}Text`);
+    if (textEl) textEl.innerText = text;
+    if (stepEl) {
+        if (active) {
+            stepEl.classList.add('active');
+        } else {
+            stepEl.classList.remove('active');
+        }
+    }
+}
+
+// Create light pulse animation
+function createPulse(bit, delay) {
+    const pulse = document.createElement('div');
+    pulse.className = 'light-pulse';
+    pulse.style.setProperty('--duration', `${state.speed}ms`);
+    pulse.style.top = '50%';
+    pulse.style.transform = 'translateY(-50%)';
+    
+    // Different color for 0 and 1
+    if (bit === '1') {
+        pulse.style.background = 'radial-gradient(circle, #fff 0%, #00ff88 30%, #00ff88 60%, transparent 100%)';
+        pulse.style.boxShadow = '0 0 20px #00ff88, 0 0 40px #00ff88';
+    } else {
+        pulse.style.background = 'radial-gradient(circle, #fff 0%, #ff0066 30%, #ff0066 60%, transparent 100%)';
+        pulse.style.boxShadow = '0 0 20px #ff0066, 0 0 40px #ff0066';
+    }
+    
+    setTimeout(() => {
+        pulse.classList.add('active');
+        pulseContainer.appendChild(pulse);
+        setTimeout(() => pulse.remove(), state.speed + 100);
+    }, delay);
+}
+
+// Display binary with highlight
+function displayBinary(binary, currentIndex = -1) {
+    const bits = binary.split('');
+    binaryDisplay.innerHTML = bits.map((bit, idx) => {
+        if (bit === ' ') return '<br>';
+        const isActive = idx === currentIndex ? 'active' : '';
+        return `<span class="binary-digit ${isActive}">${bit}</span>`;
+    }).join('');
+}
+
+// Main transmission function - FIXED VERSION
+async function transmitMessage() {
+    if (state.isTransmitting) return;
+    
+    const message = messageInput.value.trim();
+    if (!message) {
+        alert('กรุณาพิมพ์ข้อความก่อนส่งนะ! 😊');
+        return;
+    }
+
+    state.isTransmitting = true;
+    sendBtn.disabled = true;
+    sendBtn.classList.add('opacity-50');
+    
+    // Reset
+    resetDisplay();
+    statusText.innerText = '🟡 กำลังส่งข้อมูล...';
+    statusText.className = 'text-lg font-semibold text-yellow-600';
+
+    // Step 1: Show original message
+    updateStep(1, message, true);
+    await sleep(500);
+
+    // Step 2: Convert to binary
+    const binary = textToBinary(message);
+    state.currentBinary = binary;
+    updateStep(1, message, false);
+    updateStep(2, binary.substring(0, 40) + (binary.length > 40 ? '...' : ''), true);
+    displayBinary(binary);
+    await sleep(800);
+
+    // Step 3: Send light pulses
+    updateStep(2, binary.substring(0, 40) + (binary.length > 40 ? '...' : ''), false);
+    updateStep(3, 'กำลังส่งแสงผ่านใยแก้ว... 💫', true);
+    
+    const binaryClean = binary.replace(/ /g, '');
+    const pulseDelay = state.speed / binaryClean.length;
+    
+    // Send each bit as light pulse
+    for (let i = 0; i < binaryClean.length; i++) {
+        createPulse(binaryClean[i], i * pulseDelay);
+        displayBinary(binary, i);
+        await sleep(pulseDelay);
+    }
+    
+    await sleep(state.speed);
+    updateStep(3, 'ส่งเสร็จสิ้น ✅', false);
+
+    // Step 4: Decode
+    updateStep(4, 'กำลังถอดรหัส... 🔓', true);
+    await sleep(800);
+    const decodedMessage = binaryToText(binary);
+    updateStep(4, 'ถอดรหัสสำเร็จ! ✅', false);
+
+    // Step 5: Display received message - THIS IS THE FIX!
+    updateStep(5, decodedMessage, true);
+    
+    // Update receiver box with the actual message
+    receiverBox.innerText = decodedMessage;
+    receiverBox.classList.remove('text-gray-400');
+    receiverBox.classList.add('text-green-700', 'bg-green-100');
+    
+    statusText.innerText = '🟢 รับข้อมูลสำเร็จ!';
+    statusText.className = 'text-lg font-semibold text-green-600';
+    
+    await sleep(500);
+    updateStep(5, decodedMessage, false);
+
+    state.isTransmitting = false;
+    sendBtn.disabled = false;
+    sendBtn.classList.remove('opacity-50');
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function resetDisplay() {
+    receiverBox.innerText = 'รอรับข้อความ...';
+    receiverBox.classList.add('text-gray-400');
+    receiverBox.classList.remove('text-green-700', 'bg-green-100');
+    binaryDisplay.innerHTML = 'รอการส่งข้อมูล...';
+    statusText.innerText = '🔴 ยังไม่ได้เชื่อมต่อ';
+    statusText.className = 'text-lg font-semibold text-gray-500';
+    
+    for (let i = 1; i <= 5; i++) {
+        updateStep(i, i === 1 ? '-' : i === 2 ? '-' : i === 3 ? 'รอการส่ง' : i === 4 ? 'รอข้อมูล' : '-', false);
+    }
+    pulseContainer.innerHTML = '';
+}
+
+function resetAll() {
+    if (state.isTransmitting) return;
+    messageInput.value = 'สวัสดี';
+    resetDisplay();
+}
+
+// Speed slider
+speedSlider.addEventListener('input', (e) => {
+    state.speed = 3500 - parseInt(e.target.value);
+    const percent = (e.target.value - 500) / 2500;
+    if (percent < 0.33) speedValue.innerText = 'เร็วมาก 🚀';
+    else if (percent < 0.66) speedValue.innerText = 'ปกติ ⚡';
+    else speedValue.innerText = 'ช้า 🐢';
+});
+
+// Init Quiz
+function initQuiz() {
+    const quizContainer = document.getElementById('quizContainer');
+    quizContainer.innerHTML = state.questions.map((q, idx) => `
+        <div class="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 border-4 border-purple-200">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                ข้อที่ ${idx + 1}: ${q.question}
+            </h3>
+            <div class="space-y-3">
+                ${q.options.map((opt, optIdx) => `
+                    <button 
+                        onclick="checkAnswer(${q.id}, ${optIdx}, ${opt.correct})"
+                        class="quiz-btn-${q.id} w-full text-left p-4 bg-white hover:bg-purple-100 border-3 border-purple-300 rounded-xl transition transform hover:scale-102 text-lg font-semibold"
+                        data-correct="${opt.correct}">
+                        ${opt.text}
+                    </button>
+                `).join('')}
+            </div>
+            <div id="feedback-${q.id}" class="mt-4 text-lg font-bold"></div>
+        </div>
+    `).join('');
+}
+
+function checkAnswer(qId, optIdx, isCorrect) {
+    const buttons = document.querySelectorAll(`.quiz-btn-${qId}`);
+    const feedback = document.getElementById(`feedback-${qId}`);
+    
+    if (state.quizAnswers[qId]) return;
+    
+    state.quizAnswers[qId] = isCorrect;
+    
+    buttons.forEach((btn, idx) => {
+        btn.disabled = true;
+        const btnCorrect = btn.dataset.correct === 'true';
+        if (btnCorrect) {
+            btn.classList.add('bg-green-200', 'border-green-500', 'border-4');
+            btn.innerHTML += ' ✅';
+        } else if (idx === optIdx && !isCorrect) {
+            btn.classList.add('bg-red-200', 'border-red-500', 'border-4');
+            btn.innerHTML += ' ❌';
+        }
+    });
+    
+    if (isCorrect) {
+        feedback.innerHTML = '🎉 ถูกต้อง! เก่งมากเลย!';
+        feedback.className = 'mt-4 text-lg font-bold text-green-600';
+    } else {
+        feedback.innerHTML = '💪 ลองใหม่อีกครั้งในรอบหน้านะ!';
+        feedback.className = 'mt-4 text-lg font-bold text-orange-600';
+    }
+    
+    checkQuizComplete();
+}
+
+function checkQuizComplete() {
+    const total = state.questions.length;
+    const answered = Object.keys(state.quizAnswers).length;
+    if (answered === total) {
+        const correct = Object.values(state.quizAnswers).filter(v => v).length;
+        const resultEl = document.getElementById('quizResult');
+        const percentage = (correct / total) * 100;
+        
+        if (percentage === 100) {
+            resultEl.innerHTML = `🏆 ยอดเยี่ยม! ตอบถูก ${correct}/${total} ข้อ (${percentage}%) 🎊`;
+            resultEl.className = 'mt-6 text-center text-2xl font-bold text-green-600 animate-pulse';
+        } else if (percentage >= 60) {
+            resultEl.innerHTML = `👍 ดีมาก! ตอบถูก ${correct}/${total} ข้อ (${percentage}%) ⭐`;
+            resultEl.className = 'mt-6 text-center text-2xl font-bold text-blue-600';
+        } else {
+            resultEl.innerHTML = `📚 ตอบถูก ${correct}/${total} ข้อ ลองศึกษาเพิ่มเติมนะ! 💪`;
+            resultEl.className = 'mt-6 text-center text-2xl font-bold text-orange-600';
+        }
+    }
+}
+
+// Event listeners
+sendBtn.addEventListener('click', transmitMessage);
+resetBtn.addEventListener('click', resetAll);
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') transmitMessage();
+});
+
+// Init
+initQuiz();
+</script>
+</body>
+</html>

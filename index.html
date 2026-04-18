@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive by AI - รวมโปรเจค</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Kanit', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh; padding: 40px 20px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 {
+      text-align: center; color: white; font-size: 2.5rem;
+      margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    .subtitle { text-align: center; color: #e0e0ff; margin-bottom: 40px; }
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 25px;
+    }
+    .card {
+      background: white; border-radius: 16px; padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      transition: transform 0.3s, box-shadow 0.3s; text-decoration: none;
+      color: #333;
+    }
+    .card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+    .card h2 { font-size: 1.5rem; margin-bottom: 10px; color: #667eea; }
+    .card p { color: #666; line-height: 1.6; }
+    .emoji { font-size: 3rem; margin-bottom: 15px; }
+    footer { text-align: center; margin-top: 50px; color: #e0e0ff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚡ Interactive by AI</h1>
+    <p class="subtitle">รวมโปรเจคจำลองการทำงานของสิ่งต่างๆ อธิบายให้เข้าใจง่าย</p>
+    
+    <div class="grid">
+      <!-- การ์ดพัดลม V4 -->
+      <a href="./fan_system.html" class="card">
+        <div class="emoji">🌬️</div>
+        <h2>ระบบพัดลมไฟฟ้า V4</h2>
+        <p>ดูการทำงานของพัดลมตั้งแต่กระแสไฟฟ้าไหลเข้าขดลวด เกิดสนามแม่เหล็ก จนใบพัดหมุน มีปรับความเร็ว 3 ระดับ</p>
+      </a>
+
+      <!-- ตัวอย่าง: เพิ่มโปรเจคต่อไปตรงนี้ -->
+      <!--
+      <a href="./motor_ev.html" class="card">
+        <div class="emoji">🚗</div>
+        <h2>มอเตอร์รถไฟฟ้า</h2>
+        <p>จำลองมอเตอร์ BLDC ในรถ EV เร็วๆนี้</p>
+      </a>
+      -->
+      
+    </div>
+
+    <footer>
+      สร้างด้วย Meta AI + GitHub Pages 💜
+    </footer>
+  </div>
+</body>
+</html>

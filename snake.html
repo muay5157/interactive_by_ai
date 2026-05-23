@@ -612,7 +612,7 @@
     function togglePause() {
       if (gameOver) return;
       paused = !paused;
-      pauseBtn.textContent = paused ? 'RESUME' : 'PAUSE';
+      
       if (!paused && gameStarted) {
         lastMoveTime = performance.now(); // รีเซ็ตเวลาเพื่อไม่ให้ขยับทันที
       }

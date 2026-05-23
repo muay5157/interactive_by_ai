@@ -321,12 +321,9 @@
         y: snake[0].y + dir.y
       };
 
-      // 1. ชนขอบ
-      if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
-        gameOver = true;
-        endGame();
-        return;
-      }
+      // 1. ทะลุขอบ (wrap around) - ไม่มีกำแพง
+      head.x = (head.x + GRID) % GRID;
+      head.y = (head.y + GRID) % GRID;
 
       // 2. ชนตัวเอง (ยกเว้นหาง เพราะหางจะขยับออกในเฟรมนี้ ถ้าไม่กินอาหาร)
       const tailIndex = snake.length - 1;

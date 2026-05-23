@@ -104,7 +104,7 @@
 <body>
   <div class="header">
     <h1 class="title">SNAKE</h1>
-    <div class="subtitle">RETRO 1980s • KEYBOARD ONLY</div>
+    <div class="subtitle">RETRO 1980s • KEYBOARD + TOUCH</div>
   </div>
 
   <!-- Score & Level & Warp Timer -->
@@ -129,7 +129,7 @@
   </div>
 
   <div class="instructions">
-    KEYBOARD ONLY: <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> หรือ WASD &nbsp;|&nbsp; SPACE หรือ P: PAUSE &nbsp;|&nbsp; R: RESTART
+    KEYBOARD: <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>/WASD &nbsp;|&nbsp; TOUCH: Swipe/Tap canvas &nbsp;|&nbsp; SPACE/P: PAUSE &nbsp;|&nbsp; R: RESTART
   </div>
 
   <script>
@@ -168,6 +168,13 @@
     let paused = false;
     let gameOver = false;
     let gameStarted = false;
+
+    // Touch tracking for swipe + tap
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let touchMoved = false;
+    const SWIPE_THRESHOLD = 28;
 
     // Warp timer (relocate every 10s)
     let warpNextTime = 0;
@@ -615,12 +622,141 @@
       draw();
     }
 
+    // ===== TOUCH CONTROLS (swipe + tap, no on-screen D-Pad) =====
+    function handleTouchStart(e) {
+      e.preventDefault();
+      if (e.touches.length !== 1) return;
+      const rect = canvas.getBoundingClientRect();
+      touchStartX = e.touches[0].clientX - rect.left;
+      touchStartY = e.touches[0].clientY - rect.top;
+      touchStartTime = performance.now();
+      touchMoved = false;
+    }
+
+    function handleTouchMove(e) {
+      e.preventDefault();
+      if (e.touches.length !== 1) return;
+      const rect = canvas.getBoundingClientRect();
+      const curX = e.touches[0].clientX - rect.left;
+      const curY = e.touches[0].clientY - rect.top;
+      const dx = curX - touchStartX;
+      const dy = curY - touchStartY;
+      const dist = Math.hypot(dx, dy);
+      if (dist > SWIPE_THRESHOLD && !touchMoved) {
+        touchMoved = true;
+        processSwipe(dx, dy);
+      }
+    }
+
+    function handleTouchEnd(e) {
+      e.preventDefault();
+      if (touchMoved) {
+        touchMoved = false;
+        return;
+      }
+      const now = performance.now();
+      const dt = now - touchStartTime;
+      let endX = touchStartX;
+      let endY = touchStartY;
+      if (e.changedTouches && e.changedTouches.length > 0) {
+        const rect = canvas.getBoundingClientRect();
+        endX = e.changedTouches[0].clientX - rect.left;
+        endY = e.changedTouches[0].clientY - rect.top;
+      }
+      const dx = endX - touchStartX;
+      const dy = endY - touchStartY;
+      const dist = Math.hypot(dx, dy);
+      if (dist > SWIPE_THRESHOLD) {
+        processSwipe(dx, dy);
+      } else if (dist < 32 && dt < 450) {
+        handleTap(touchStartX, touchStartY);
+      }
+    }
+
+    function processSwipe(dx, dy) {
+      if (gameOver) {
+        resetGame();
+        return;
+      }
+      let newDir = null;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      if (absDx > absDy) {
+        newDir = dx > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 };
+      } else {
+        newDir = dy > 0 ? { x: 0, y: 1 } : (dy < 0 ? { x: 0, y: -1 } : null);
+      }
+      if (newDir) changeDirection(newDir);
+    }
+
+    function handleTap(tapX, tapY) {
+      if (gameOver) {
+        resetGame();
+        return;
+      }
+      if (!gameStarted) {
+        // first tap starts the game (uses current initial dir); prefer swipe to choose dir
+        gameStarted = true;
+        lastMoveTime = performance.now();
+        warpNextTime = performance.now() + 10000;
+        draw();
+        return;
+      }
+
+      const head = snake[0];
+      const hx = head.x * CELL + CELL / 2;
+      const hy = head.y * CELL + CELL / 2;
+      const dx = tapX - hx;
+      const dy = tapY - hy;
+      const dist = Math.hypot(dx, dy);
+
+      const isReverse = (d) => d.x === -dir.x && d.y === -dir.y;
+
+      if (dist < 20) {
+        // tap near head -> relative left turn (counter-clockwise)
+        let newDir;
+        if (dir.x === 1) newDir = { x: 0, y: -1 };
+        else if (dir.x === -1) newDir = { x: 0, y: 1 };
+        else if (dir.y === -1) newDir = { x: -1, y: 0 };
+        else newDir = { x: 1, y: 0 };
+        if (!isReverse(newDir)) changeDirection(newDir);
+        return;
+      }
+
+      // choose best non-reverse direction by dot-product (tap position relative to head)
+      const cands = [
+        { x: 0, y: -1 },
+        { x: 0, y: 1 },
+        { x: -1, y: 0 },
+        { x: 1, y: 0 }
+      ].filter(d => !isReverse(d));
+
+      let best = cands[0];
+      let bestScore = -Infinity;
+      for (const c of cands) {
+        const dot = c.x * dx + c.y * dy;
+        if (dot > bestScore) {
+          bestScore = dot;
+          best = c;
+        }
+      }
+      changeDirection(best);
+    }
+
+    function initTouchControls() {
+      canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+      canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+      canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+      canvas.addEventListener('touchcancel', (e) => { e.preventDefault(); touchMoved = false; }, { passive: false });
+    }
+
     // ===== INIT =====
     function init() {
       document.addEventListener('keydown', handleKey);
+      initTouchControls();
       resetGame();
       requestAnimationFrame(gameLoop);
-      console.log('%c[Snake Retro] Keyboard-only + Walls + Warp Gates ready. Use arrows/WASD.', 'color:#114411');
+      console.log('%c[Snake Retro] Keyboard + Touch (swipe/tap) + Walls + Warp Gates ready.', 'color:#114411');
     }
 
     window.onload = init;

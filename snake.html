@@ -159,31 +159,7 @@
     <!-- Game Canvas (20x20 grid) -->
     <canvas id="game" width="400" height="400" aria-label="Snake game board"></canvas>
 
-    <!-- Pause & Restart -->
-    <div class="btn-row">
-      <button id="pauseBtn">PAUSE</button>
-      <button id="restartBtn">RESTART</button>
-    </div>
-
-    <!-- Mobile D-Pad -->
-    <div class="dpad" id="dpad">
-      <button class="empty" aria-hidden="true"></button>
-      <button id="upBtn" aria-label="Up">▲</button>
-      <button class="empty" aria-hidden="true"></button>
-
-      <button id="leftBtn" aria-label="Left">◀</button>
-      <button class="empty" aria-hidden="true"></button>
-      <button id="rightBtn" aria-label="Right">▶</button>
-
-      <button class="empty" aria-hidden="true"></button>
-      <button id="downBtn" aria-label="Down">▼</button>
-      <button class="empty" aria-hidden="true"></button>
-    </div>
   </div>
-
-  <div class="instructions">
-    KEYBOARD: <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> หรือ WASD &nbsp;|&nbsp; 
-    MOBILE: แตะปุ่มลูกศรหรือปัดบนหน้าจอ
   </div>
 
   <script>
@@ -206,6 +182,11 @@
     let paused = false;
     let gameOver = false;
     let gameStarted = false;
+
+    // ===== NEW FEATURES: Walls & Moving Portal =====
+    let walls = [];           // กำแพงถาวร (ทะลุไม่ได้)
+    let portal = { x: 0, y: 0, timer: 10, moveInterval: 10 }; // ประตูวาป + เคานต์ดาวน์
+    let portalMoveTime = Date.now();
 
     // Canvas
     const canvas = document.getElementById('game');

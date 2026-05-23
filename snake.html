@@ -195,8 +195,8 @@
     // UI elements
     const scoreEl = document.getElementById('score');
     const levelEl = document.getElementById('level');
-    const pauseBtn = document.getElementById('pauseBtn');
-    const restartBtn = document.getElementById('restartBtn');
+    
+    
 
     // ===== AUDIO (beep แบบ retro) =====
     let audioCtx;
@@ -243,8 +243,8 @@
 
       spawnFood();
       updateUI();
-      pauseBtn.textContent = 'PAUSE';
-      pauseBtn.disabled = false;
+      
+      
       draw(); // วาดเฟรมแรก
     }
 
@@ -451,7 +451,7 @@
     function endGame() {
       gameOver = true;
       playBeep(120, 0.45, 'sawtooth', 0.12); // เสียงตาย
-      pauseBtn.disabled = true;
+      
       draw();
     }
 
@@ -519,8 +519,7 @@
 
     // ===== INPUT: D-PAD BUTTONS =====
     function setupDpad() {
-      const dirs = {
-        upBtn: { x: 0, y: -1 },
+      const dirs = {},
         downBtn: { x: 0, y: 1 },
         leftBtn: { x: -1, y: 0 },
         rightBtn: { x: 1, y: 0 }
@@ -622,19 +621,15 @@
 
     // ===== BUTTONS =====
     function setupButtons() {
-      pauseBtn.addEventListener('click', togglePause);
-      pauseBtn.addEventListener('touchstart', (e) => { e.preventDefault(); togglePause(); }, { passive: false });
-
-      restartBtn.addEventListener('click', () => {
-        resetGame();
+            
+              resetGame();
         // เริ่มวิ่งทันทีเมื่อกด restart
         if (!gameStarted) {
           gameStarted = true;
           lastMoveTime = performance.now();
         }
       });
-      restartBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
+              e.preventDefault();
         resetGame();
         gameStarted = true;
         lastMoveTime = performance.now();

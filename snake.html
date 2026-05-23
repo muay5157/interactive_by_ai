@@ -473,6 +473,7 @@
 
     // ===== INPUT: KEYBOARD =====
     function handleKey(e) {
+      startGameIfNeeded();
       if (gameOver && (e.key === 'r' || e.key === 'R')) {
         resetGame();
         return;

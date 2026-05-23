@@ -115,6 +115,37 @@
       cursor: default;
     }
 
+    /* D-Pad for mobile - retro style */
+    .dpad {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: 70px 70px 70px;
+      grid-template-rows: 70px 70px 70px;
+      gap: 4px;
+      width: min(400px, 92vmin);
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .dpad button {
+      min-width: 0;
+      padding: 0;
+      font-size: 26px;
+      line-height: 1;
+      border: 4px solid #114411;
+      background: #001100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 0 #001100;
+    }
+    .dpad button:active {
+      background: #0a330a;
+      transform: scale(0.92) translateY(2px);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+    }
+    .dpad .empty { background: transparent; border: none; box-shadow: none; }
+    .dpad .empty:active { transform: none; background: transparent; }
 
     .instructions {
       margin-top: 10px;
@@ -134,6 +165,7 @@
     @media (max-width: 380px) {
       .title { font-size: 22px; }
       button { font-size: 13px; padding: 8px 14px; min-width: 90px; }
+      .dpad button { font-size: 22px; }
     }
   </style>
 </head>
@@ -159,7 +191,31 @@
     <!-- Game Canvas (20x20 grid) -->
     <canvas id="game" width="400" height="400" aria-label="Snake game board"></canvas>
 
+    <!-- Pause & Restart -->
+    <div class="btn-row">
+      <button id="pauseBtn">PAUSE</button>
+      <button id="restartBtn">RESTART</button>
+    </div>
+
+    <!-- Mobile D-Pad -->
+    <div class="dpad" id="dpad">
+      <button class="empty" aria-hidden="true"></button>
+      <button id="upBtn" aria-label="Up">▲</button>
+      <button class="empty" aria-hidden="true"></button>
+
+      <button id="leftBtn" aria-label="Left">◀</button>
+      <button class="empty" aria-hidden="true"></button>
+      <button id="rightBtn" aria-label="Right">▶</button>
+
+      <button class="empty" aria-hidden="true"></button>
+      <button id="downBtn" aria-label="Down">▼</button>
+      <button class="empty" aria-hidden="true"></button>
+    </div>
   </div>
+
+  <div class="instructions">
+    KEYBOARD: <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> หรือ WASD &nbsp;|&nbsp; 
+    MOBILE: แตะปุ่มลูกศรหรือปัดบนหน้าจอ
   </div>
 
   <script>
@@ -183,11 +239,6 @@
     let gameOver = false;
     let gameStarted = false;
 
-    // ===== NEW FEATURES: Walls & Moving Portal =====
-    let walls = [];           // กำแพงถาวร (ทะลุไม่ได้)
-    let portal = { x: 0, y: 0, timer: 10, moveInterval: 10 }; // ประตูวาป + เคานต์ดาวน์
-    let portalMoveTime = Date.now();
-
     // Canvas
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d', { alpha: false });
@@ -195,8 +246,8 @@
     // UI elements
     const scoreEl = document.getElementById('score');
     const levelEl = document.getElementById('level');
-    
-    
+    const pauseBtn = document.getElementById('pauseBtn');
+    const restartBtn = document.getElementById('restartBtn');
 
     // ===== AUDIO (beep แบบ retro) =====
     let audioCtx;
@@ -243,8 +294,8 @@
 
       spawnFood();
       updateUI();
-      
-      
+      pauseBtn.textContent = 'PAUSE';
+      pauseBtn.disabled = false;
       draw(); // วาดเฟรมแรก
     }
 
@@ -302,9 +353,11 @@
         y: snake[0].y + dir.y
       };
 
-      // 1. ทะลุขอบ (wrap around) - ไม่มีกำแพง
-      head.x = (head.x + GRID) % GRID;
-      head.y = (head.y + GRID) % GRID;
+      // 1. ชนขอบ
+      if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
+        endGame();
+        return;
+      }
 
       // 2. ชนตัวเอง (ยกเว้นหาง เพราะหางจะขยับออกในเฟรมนี้ ถ้าไม่กินอาหาร)
       const tailIndex = snake.length - 1;
@@ -451,7 +504,7 @@
     function endGame() {
       gameOver = true;
       playBeep(120, 0.45, 'sawtooth', 0.12); // เสียงตาย
-      
+      pauseBtn.disabled = true;
       draw();
     }
 
@@ -473,7 +526,6 @@
 
     // ===== INPUT: KEYBOARD =====
     function handleKey(e) {
-      startGameIfNeeded();
       if (gameOver && (e.key === 'r' || e.key === 'R')) {
         resetGame();
         return;
@@ -520,7 +572,8 @@
 
     // ===== INPUT: D-PAD BUTTONS =====
     function setupDpad() {
-      const dirs = {},
+      const dirs = {
+        upBtn: { x: 0, y: -1 },
         downBtn: { x: 0, y: 1 },
         leftBtn: { x: -1, y: 0 },
         rightBtn: { x: 1, y: 0 }
@@ -574,46 +627,11 @@
       }, { passive: false });
     }
 
-    // ===== TAP CONTROL (กดหน้าจอเพื่อเลี้ยว - ไม่ต้องใช้ปุ่มลูกศร) =====
-    function setupTapControl() {
-      canvas.addEventListener('click', (e) => {
-        if (gameOver || !gameStarted) return;
-        
-        const rect = canvas.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const clickY = e.clientY - rect.top;
-        
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        
-        const dx = clickX - centerX;
-        const dy = clickY - centerY;
-        
-        let newDir = null;
-        
-        if (Math.abs(dx) > Math.abs(dy)) {
-          // แนวนอน
-          newDir = dx > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 };
-        } else {
-          // แนวตั้ง
-          newDir = dy > 0 ? { x: 0, y: 1 } : { x: 0, y: -1 };
-        }
-        
-        if (!gameStarted) {
-          gameStarted = true;
-          lastMoveTime = performance.now();
-        }
-        if (newDir) {
-          changeDirection(newDir);
-        }
-      });
-    }
-
     // ===== PAUSE / RESUME =====
     function togglePause() {
       if (gameOver) return;
       paused = !paused;
-      
+      pauseBtn.textContent = paused ? 'RESUME' : 'PAUSE';
       if (!paused && gameStarted) {
         lastMoveTime = performance.now(); // รีเซ็ตเวลาเพื่อไม่ให้ขยับทันที
       }
@@ -622,15 +640,19 @@
 
     // ===== BUTTONS =====
     function setupButtons() {
-            
-              resetGame();
+      pauseBtn.addEventListener('click', togglePause);
+      pauseBtn.addEventListener('touchstart', (e) => { e.preventDefault(); togglePause(); }, { passive: false });
+
+      restartBtn.addEventListener('click', () => {
+        resetGame();
         // เริ่มวิ่งทันทีเมื่อกด restart
         if (!gameStarted) {
           gameStarted = true;
           lastMoveTime = performance.now();
         }
       });
-              e.preventDefault();
+      restartBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
         resetGame();
         gameStarted = true;
         lastMoveTime = performance.now();
@@ -640,10 +662,9 @@
     // ===== INIT =====
     function init() {
       // ตั้งค่าปุ่มและ input
-      
+      setupDpad();
       setupSwipe();
-      setupTapControl();
-      
+      setupButtons();
       document.addEventListener('keydown', handleKey);
 
       // เริ่มเกม

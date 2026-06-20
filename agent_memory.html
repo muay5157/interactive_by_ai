@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shared Memory — หลายเครื่อง สมองเดียว</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { font-family: 'Kanit', sans-serif; }
+body { background: linear-gradient(135deg, #0f172a 0%, #312e81 100%); min-height: 100vh; }
+.glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+@keyframes orbit { from{transform:rotate(0deg) translateX(90px) rotate(0deg)} to{transform:rotate(360deg) translateX(90px) rotate(-360deg)} }
+.satellite { animation: orbit 12s linear infinite; }
+.satellite:nth-child(2) { animation-delay: -4s; }
+.satellite:nth-child(3) { animation-delay: -8s; }
+@keyframes brain-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+.brain-pulse { animation: brain-pulse 2s ease-in-out infinite; }
+.sync-flash { animation: flash 0.6s ease; }
+@keyframes flash { 0%{background:rgba(52,211,153,0.3)} 100%{background:transparent} }
+</style>
+</head>
+<body class="text-white p-4 md:p-8">
+<div class="max-w-4xl mx-auto">
+  <a href="index.html" class="text-indigo-300 text-sm hover:underline">← กลับหน้าหลัก</a>
+
+  <header class="text-center mt-4 mb-6">
+    <div class="text-5xl mb-2">🧠</div>
+    <h1 class="text-2xl md:text-3xl font-bold">Shared Memory Protocol</h1>
+    <p class="text-indigo-200 mt-2 text-sm">Central Brain + Satellites — ไม่ใช่แชทสด แต่จำร่วมกันได้</p>
+  </header>
+
+  <div class="glass rounded-2xl p-4 mb-6 text-center text-sm text-indigo-100">
+    <strong>oracle_search</strong> / <strong>oracle_learn</strong> = วิธีที่ AI หลายเครื่องอ่าน-เขียนความจำร่วมผ่าน Brain กลาง
+  </div>
+
+  <!-- Orbit visual -->
+  <div class="glass rounded-2xl p-8 mb-6 flex justify-center items-center" style="min-height:220px">
+    <div class="relative w-48 h-48 flex items-center justify-center">
+      <div id="brain" class="brain-pulse z-10 text-center p-4 rounded-full bg-indigo-600/50 border-2 border-indigo-400 w-24 h-24 flex flex-col items-center justify-center">
+        <span class="text-2xl">🧠</span>
+        <span class="text-[9px] font-bold">BRAIN</span>
+      </div>
+      <div class="satellite absolute text-center" style="top:50%;left:50%;margin:-16px">
+        <span class="text-xl">🛰️</span><div class="text-[8px]">SAT-1</div>
+      </div>
+      <div class="satellite absolute text-center" style="top:50%;left:50%;margin:-16px">
+        <span class="text-xl">💻</span><div class="text-[8px]">SAT-2</div>
+      </div>
+      <div class="satellite absolute text-center" style="top:50%;left:50%;margin:-16px">
+        <span class="text-xl">📱</span><div class="text-[8px]">SAT-3</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simulated vault -->
+  <div class="grid md:grid-cols-2 gap-4 mb-6">
+    <div class="glass rounded-2xl p-4">
+      <div class="text-xs text-indigo-400 mb-2">📝 oracle_learn — เขียนความจำ</div>
+      <input id="learn-input" type="text" placeholder="เช่น: วันนี้เรียน MCP แล้ว"
+        class="w-full bg-indigo-950/50 border border-indigo-500/30 rounded-lg px-3 py-2 text-sm mb-2 outline-none focus:border-indigo-400">
+      <button onclick="learn()" class="w-full bg-indigo-600 hover:bg-indigo-500 rounded-lg py-2 text-sm font-semibold transition">
+        บันทึกลง Vault
+      </button>
+      <div class="text-[10px] text-indigo-400 mt-2">Satellite เขียน → sync → Brain index</div>
+    </div>
+    <div class="glass rounded-2xl p-4">
+      <div class="text-xs text-indigo-400 mb-2">🔍 oracle_search — ค้นความจำ</div>
+      <input id="search-input" type="text" placeholder="ค้นคำว่า MCP..."
+        class="w-full bg-indigo-950/50 border border-indigo-500/30 rounded-lg px-3 py-2 text-sm mb-2 outline-none focus:border-indigo-400">
+      <button onclick="search()" class="w-full bg-violet-600 hover:bg-violet-500 rounded-lg py-2 text-sm font-semibold transition">
+        ค้นหา
+      </button>
+      <div class="text-[10px] text-indigo-400 mt-2">เครื่องไหนก็ค้นได้ — เห็นข้อมูลเดียวกัน</div>
+    </div>
+  </div>
+
+  <div id="vault" class="glass rounded-2xl p-4 mb-4">
+    <div class="text-xs text-indigo-400 mb-2">ψ/ Vault (จำลอง)</div>
+    <div id="vault-items" class="space-y-2 text-sm">
+      <div class="text-indigo-300/60 italic text-xs">ยังว่าง — ลองบันทึกอะไรสักอย่าง</div>
+    </div>
+  </div>
+
+  <div id="search-results" class="glass rounded-2xl p-4 hidden">
+    <div class="text-xs text-emerald-400 mb-2">ผลลัพธ์ search</div>
+    <div id="results-list" class="space-y-2 text-sm"></div>
+  </div>
+
+  <div class="glass rounded-2xl p-4 mt-4 text-xs text-indigo-300 leading-relaxed">
+    <strong>💡 จริงๆ แล้ว:</strong> ไม่ใช่แชท realtime ระหว่างเครื่อง — แต่เขียนลง vault แล้วอีกเครื่องมาค้นได้ในไม่กี่วินาที
+    <br>ลองต่อ: <a href="mcp_tool_call.html" class="text-indigo-400 underline">MCP Tool Call</a>
+  </div>
+</div>
+
+<script>
+const vault = [
+  { text: 'Keep the human human — คนตัดสินใจเรื่อง deploy/auth', tags: ['soul','human'] },
+  { text: 'MCP = JSON-RPC ระหว่าง AI กับเครื่องมือ', tags: ['mcp','protocol'] }
+];
+
+function renderVault() {
+  const el = document.getElementById('vault-items');
+  el.innerHTML = vault.map((v,i) =>
+    `<div class="flex gap-2 items-start p-2 rounded-lg bg-indigo-900/30">
+      <span class="text-indigo-500">#${i+1}</span>
+      <span>${v.text}</span>
+    </div>`
+  ).join('');
+}
+
+function learn() {
+  const input = document.getElementById('learn-input');
+  const text = input.value.trim();
+  if (!text) return;
+  vault.unshift({ text, tags: text.toLowerCase().split(/\s+/) });
+  input.value = '';
+  renderVault();
+  const brain = document.getElementById('brain');
+  brain.parentElement.classList.add('sync-flash');
+  setTimeout(() => brain.parentElement.classList.remove('sync-flash'), 600);
+}
+
+function search() {
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  if (!q) return;
+  const hits = vault.filter(v =>
+    v.text.toLowerCase().includes(q) || v.tags.some(t => t.includes(q))
+  );
+  const panel = document.getElementById('search-results');
+  const list = document.getElementById('results-list');
+  panel.classList.remove('hidden');
+  if (!hits.length) {
+    list.innerHTML = '<div class="text-indigo-400 italic">ไม่พบ — ลอง oracle_learn ก่อน?</div>';
+    return;
+  }
+  list.innerHTML = hits.map(h =>
+    `<div class="p-2 rounded-lg bg-emerald-900/20 border border-emerald-500/20">${h.text}</div>`
+  ).join('');
+}
+
+renderVault();
+</script>
+</body>
+</html>

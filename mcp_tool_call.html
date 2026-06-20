@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Tool Call — เรียนรู้ AI Protocol แบบเล่น</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { font-family: 'Kanit', sans-serif; }
+body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); min-height: 100vh; }
+.glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+.packet { transition: all 0.6s cubic-bezier(0.4,0,0.2,1); }
+@keyframes pulse-glow { 0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,0.4)} 50%{box-shadow:0 0 20px 6px rgba(99,102,241,0.6)} }
+.node-active { animation: pulse-glow 1.5s ease-in-out infinite; }
+.log-line { animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+.json-key { color: #93c5fd; }
+.json-str { color: #86efac; }
+.json-num { color: #fcd34d; }
+</style>
+</head>
+<body class="text-white p-4 md:p-8">
+<div class="max-w-4xl mx-auto">
+  <a href="index.html" class="text-indigo-300 text-sm hover:underline">← กลับหน้าหลัก</a>
+
+  <header class="text-center mt-4 mb-8">
+    <div class="text-5xl mb-2">🔌</div>
+    <h1 class="text-2xl md:text-3xl font-bold">MCP Tool Call</h1>
+    <p class="text-indigo-200 mt-2 text-sm md:text-base">Model Context Protocol — ภาษาที่ AI คุยกับเครื่องมือภายนอก</p>
+  </header>
+
+  <!-- One-liner explain -->
+  <div class="glass rounded-2xl p-4 mb-6 text-center text-sm text-indigo-100">
+    <strong>MCP</strong> = สัญญาณไฟฟ้าของโลก AI 🤖 AI ไม่รู้ทุกอย่างเอง → มันขอเครื่องมือผ่าน protocol นี้
+  </div>
+
+  <!-- Progress -->
+  <div class="flex justify-center gap-2 mb-6" id="progress">
+    <span class="step glass px-3 py-1 rounded-full text-xs" data-step="0">① Handshake</span>
+    <span class="step glass px-3 py-1 rounded-full text-xs opacity-50" data-step="1">② List Tools</span>
+    <span class="step glass px-3 py-1 rounded-full text-xs opacity-50" data-step="2">③ Call Tool</span>
+  </div>
+
+  <!-- Visual nodes -->
+  <div class="glass rounded-2xl p-6 mb-6">
+    <div class="flex items-center justify-between gap-2 md:gap-4">
+      <div id="node-client" class="flex-1 text-center p-4 rounded-xl bg-indigo-900/40 border border-indigo-500/30">
+        <div class="text-3xl">🤖</div>
+        <div class="font-semibold text-sm mt-1">Grok Client</div>
+        <div class="text-xs text-indigo-300">ถาม + สั่งงาน</div>
+      </div>
+      <div class="flex flex-col items-center gap-1 min-w-[60px]">
+        <div id="packet" class="packet text-2xl opacity-0">📨</div>
+        <div class="text-xs text-indigo-400">JSON-RPC</div>
+      </div>
+      <div id="node-server" class="flex-1 text-center p-4 rounded-xl bg-violet-900/40 border border-violet-500/30">
+        <div class="text-3xl">🔌</div>
+        <div class="font-semibold text-sm mt-1">MCP Server</div>
+        <div class="text-xs text-violet-300">แปล + ส่งต่อ</div>
+      </div>
+      <div class="flex flex-col items-center gap-1 min-w-[40px]">
+        <div class="text-lg text-indigo-500">→</div>
+      </div>
+      <div id="node-tool" class="flex-1 text-center p-4 rounded-xl bg-emerald-900/40 border border-emerald-500/30">
+        <div class="text-3xl">🛠️</div>
+        <div class="font-semibold text-sm mt-1">Tool</div>
+        <div class="text-xs text-emerald-300" id="tool-name">รอคำสั่ง...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action buttons -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+    <button onclick="runStep(0)" id="btn-0" class="glass hover:bg-indigo-600/30 rounded-xl p-4 text-left transition">
+      <div class="font-semibold">① Handshake</div>
+      <div class="text-xs text-indigo-300 mt-1">initialize — จับมือก่อนคุย</div>
+    </button>
+    <button onclick="runStep(1)" id="btn-1" class="glass hover:bg-indigo-600/30 rounded-xl p-4 text-left transition opacity-50" disabled>
+      <div class="font-semibold">② List Tools</div>
+      <div class="text-xs text-indigo-300 mt-1">tools/list — ดูมีเครื่องมืออะไร</div>
+    </button>
+    <button onclick="runStep(2)" id="btn-2" class="glass hover:bg-indigo-600/30 rounded-xl p-4 text-left transition opacity-50" disabled>
+      <div class="font-semibold">③ Call Tool</div>
+      <div class="text-xs text-indigo-300 mt-1">tools/call — สั่ง get_weather</div>
+    </button>
+  </div>
+
+  <!-- JSON log -->
+  <div class="glass rounded-2xl p-4">
+    <div class="text-xs text-indigo-400 mb-2 uppercase tracking-wider">Wire log (สิ่งที่วิ่งจริงบนเครือข่าย)</div>
+    <div id="log" class="font-mono text-xs space-y-2 max-h-48 overflow-y-auto text-indigo-100">
+      <div class="text-indigo-500">// กดปุ่มด้านบนเพื่อส่ง message...</div>
+    </div>
+  </div>
+
+  <div id="graduate" class="hidden mt-6 glass rounded-2xl p-6 text-center border border-emerald-500/40">
+    <div class="text-4xl mb-2">🎓</div>
+    <div class="font-bold text-lg text-emerald-300">จบบท MCP แล้ว!</div>
+    <p class="text-sm text-indigo-200 mt-2">ต่อไปลอง <a href="agent_memory.html" class="text-emerald-400 underline">Shared Memory</a> — หลายเครื่องใช้สมองร่วม</p>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    tool: '—',
+    request: { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', clientInfo: { name: 'grok-build' } } },
+    response: { jsonrpc: '2.0', id: 1, result: { serverInfo: { name: 'arra-oracle' }, capabilities: { tools: {} } } },
+    explain: '← จับมือก่อน บอกว่าใช้ protocol เวอร์ชันไหน'
+  },
+  {
+    tool: '3 tools',
+    request: { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+    response: { jsonrpc: '2.0', id: 2, result: { tools: [
+      { name: 'oracle_search', description: 'ค้นหาในความจำ' },
+      { name: 'get_weather', description: 'ดูอากาศ' },
+      { name: 'read_file', description: 'อ่านไฟล์' }
+    ]}},
+    explain: '← Server บอกว่ามีเครื่องมืออะไรให้ใช้'
+  },
+  {
+    tool: 'get_weather',
+    request: { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'get_weather', arguments: { city: 'Bangkok' } } },
+    response: { jsonrpc: '2.0', id: 3, result: { content: [{ type: 'text', text: '☀️ Bangkok: 34°C, humidity 70%' }] } },
+    explain: '← AI ได้ผลลัพธ์ เอาไปตอบคุณต่อ'
+  }
+];
+
+let current = 0;
+
+function highlight(node) {
+  ['node-client','node-server','node-tool'].forEach(id => document.getElementById(id).classList.remove('node-active'));
+  if (node) document.getElementById(node).classList.add('node-active');
+}
+
+function fmt(obj) {
+  return JSON.stringify(obj, null, 2)
+    .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+    .replace(/: "([^"]*)"/g, ': <span class="json-str">"$1"</span>')
+    .replace(/: (\d+)/g, ': <span class="json-num">$1</span>');
+}
+
+function animatePacket() {
+  const p = document.getElementById('packet');
+  p.style.opacity = '1';
+  p.style.transform = 'translateX(0)';
+  setTimeout(() => { p.style.transform = 'translateX(80px)'; }, 100);
+  setTimeout(() => { p.style.opacity = '0'; p.style.transform = 'translateX(0)'; }, 700);
+}
+
+function addLog(label, obj, dir) {
+  const log = document.getElementById('log');
+  if (log.querySelector('.text-indigo-500')) log.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'log-line';
+  div.innerHTML = `<span class="text-${dir === 'req' ? 'yellow' : 'emerald'}-400">${dir === 'req' ? '→ REQ' : '← RES'}</span> ${label}<pre class="mt-1 text-[10px] leading-relaxed whitespace-pre-wrap">${fmt(obj)}</pre>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function runStep(n) {
+  if (n !== current) return;
+  const s = steps[n];
+  document.getElementById('tool-name').textContent = s.tool;
+
+  highlight('node-client');
+  addLog(s.request.method, s.request, 'req');
+  animatePacket();
+
+  setTimeout(() => {
+    highlight('node-server');
+    setTimeout(() => {
+      highlight('node-tool');
+      addLog(s.request.method, s.response, 'res');
+      const steps_el = document.querySelectorAll('.step');
+      steps_el[n].classList.add('bg-indigo-600/50');
+      steps_el[n].classList.remove('opacity-50');
+      document.getElementById('log').lastElementChild.insertAdjacentHTML('afterend',
+        `<div class="log-line text-indigo-300 text-[11px] italic">${s.explain}</div>`);
+
+      current++;
+      if (current < 3) {
+        document.getElementById(`btn-${current}`).disabled = false;
+        document.getElementById(`btn-${current}`).classList.remove('opacity-50');
+        document.querySelector(`.step[data-step="${current}"]`).classList.remove('opacity-50');
+      } else {
+        document.getElementById('graduate').classList.remove('hidden');
+      }
+      setTimeout(() => highlight(null), 800);
+    }, 500);
+  }, 400);
+}
+</script>
+</body>
+</html>

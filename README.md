@@ -1,20 +1,22 @@
-# Interactive by AI
+# AI Protocol Playground
 
-> **Learn anything by playing with it.** Free interactive HTML demos — no install, works on phone.
+> **Learn AI protocols by playing.** MCP, shared memory, agent handshakes — free in your browser.
 
-🇹🇭 รวมสื่อการเรียนรู้แบบจำลอง อธิบายให้เข้าใจง่าย สร้างด้วย AI  
-🇬🇧 Interactive science & math toys in the browser. Built with AI, shared for free.
+🇹🇭 ช่องสอน Protocol ของโลก AI แบบ interactive สนุก ไม่ต้องอ่าน spec ยาว  
+🇬🇧 Interactive tutorials for MCP, oracle memory, multi-agent coordination.
 
-**Live demo:** https://muay5157.github.io/interactive_by_ai/
+**Live:** https://muay5157.github.io/interactive_by_ai/
 
-## Demos
+## Protocol demos (start here)
 
-| Demo | What you learn |
-|------|----------------|
-| [Fan System](fan_system.html) | How electric motors spin fan blades — coils, magnetic fields, 3 speed levels |
-| [Fiber Optic](fiber_optic.html) | Total internal reflection — watch light bounce inside a glass fiber |
-| [Tangram GeoLearn](Tangram.html) | Drag, rotate, solve geometry puzzles — area & perimeter in real time |
-| [Snake Classic](snake.html) | Nokia-style snake game — keyboard & touch |
+| Demo | Protocol | What you learn |
+|------|----------|----------------|
+| [MCP Tool Call](mcp_tool_call.html) | **MCP** (Model Context Protocol) | JSON-RPC handshake → tools/list → tools/call |
+| [Shared Memory](agent_memory.html) | **Oracle vault** | oracle_learn / oracle_search — many machines, one brain |
+
+## Legacy demos (science & math)
+
+Fan motor · Fiber optic · Tangram · Snake — still available from the homepage.
 
 ## Run locally
 
@@ -22,40 +24,20 @@
 git clone https://github.com/muay5157/interactive_by_ai.git
 cd interactive_by_ai
 python3 -m http.server 8080
-# open http://localhost:8080
 ```
 
-## Deploy (free)
+## Who is this for?
 
-1. GitHub → **Settings → Pages → Source: main branch**
-2. Wait ~2 min → live at `https://muay5157.github.io/interactive_by_ai/`
+- Developers curious about **MCP** before reading the full spec
+- Students / teachers explaining **how AI agents use tools**
+- House of Grok Citadel crew learning **satellite ↔ brain** patterns
 
-## Share hook (best for viral)
-
-Lead with **Fiber Optic** or **Tangram** — visual, instant, no login:
+## Share
 
 ```
-I built free interactive science demos in the browser 🎮
-Try fiber optics: https://muay5157.github.io/interactive_by_ai/fiber_optic.html
+Free interactive MCP tutorial in the browser 🔌
+https://muay5157.github.io/interactive_by_ai/mcp_tool_call.html
 ```
-
-## Growth plan — ฿1,000 budget (realistic)
-
-| Item | Cost | Action |
-|------|------|--------|
-| Hosting | ฿0 | GitHub Pages |
-| Domain (optional) | ~฿400/yr | Only if a short name helps sharing |
-| Boost 1 TikTok/Reels | ฿300–500 | Target: parents + teachers in Thailand |
-| Reserve | ฿100–300 | Buffer / second boost if first post hits |
-| Everything else | ฿0 | Reddit, HN Show HN, teacher FB groups, Product Hunt |
-
-**Do not:** paid ads everywhere, influencer deals, paid PR — budget too small.
-
-**Do:** one great 30-sec screen recording + one boosted post + post to `r/InternetIsBeautiful`.
-
-## House of Grok Citadel
-
-This repo was improved as a **satellite ↔ central brain** collaboration test (PanutDesktop + SATELLITE).
 
 ---
 
